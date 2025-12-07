@@ -1,0 +1,89 @@
+{
+  "schema_id": "amazon_shirt_v1",
+  "marketplace": "amazon",
+  "category": "shirt",
+  "version": "2024-01-15",
+  "has_variations": true,
+  "columns": [
+    {
+      "col_index": 0,
+      "header": "SKU",
+      "canonical": "sku",
+      "type": "string",
+      "required": true,
+      "enum": null
+    },
+    {
+      "col_index": 1,
+      "header": "Parent SKU",
+      "canonical": "parent_sku",
+      "type": "string",
+      "required": false,
+      "enum": null
+    },
+    {
+      "col_index": 2,
+      "header": "Product Title",
+      "canonical": "title",
+      "type": "string",
+      "required": true,
+      "enum": null
+    },
+    {
+      "col_index": 3,
+      "header": "Product Description",
+      "canonical": "description",
+      "type": "string",
+      "required": true,
+      "enum": null
+    },
+    {
+      "col_index": 4,
+      "header": "Brand",
+      "canonical": "brand",
+      "type": "string",
+      "required": true,
+      "enum": null
+    },
+    {
+      "col_index": 5,
+      "header": "Fabric Type",
+      "canonical": "fabric",
+      "type": "string",
+      "required": true,
+      "enum": ["Cotton", "Polyester", "Silk", "Linen", "Rayon", "Blend"]
+    },
+    {
+      "col_index": 6,
+      "header": "Size",
+      "canonical": "size",
+      "type": "string",
+      "required": true,
+      "enum": ["XS", "S", "M", "L", "XL", "XXL", "XXXL"]
+    },
+    {
+      "col_index": 7,
+      "header": "Color",
+      "canonical": "color",
+      "type": "string",
+      "required": true,
+      "enum": null
+    },
+    {
+      "col_index": 8,
+      "header": "Price",
+      "canonical": "price",
+      "type": "float",
+      "required": true,
+      "enum": null
+    },
+    {
+      "col_index": 9,
+      "header": "Main Image URL",
+      "canonical": "main_image_url",
+      "type": "string",
+      "required": true,
+      "enum": null
+    }
+  ]
+}
