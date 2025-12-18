@@ -1,8 +1,12 @@
 """
 Shared dependencies for FastAPI endpoints.
+
+Provides database connections and authentication dependencies.
 """
-from typing import Optional, Generator
+from typing import Optional
 from functools import lru_cache
+
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from .config import Settings, settings
 from .auth import get_current_user
@@ -17,63 +21,69 @@ def get_settings() -> Settings:
     return settings
 
 
-# TODO: Add MongoDB database dependency
-# Example implementation:
-#
-# from motor.motor_asyncio import AsyncIOMotorClient
-# from pymongo.database import Database
-#
-# _mongo_client: Optional[AsyncIOMotorClient] = None
-#
-#
-# async def get_database() -> Database:
-#     """
-#     Get MongoDB database connection.
-#     Use as dependency: db = Depends(get_database)
-#     """
-#     global _mongo_client
-#     if _mongo_client is None:
-#         _mongo_client = AsyncIOMotorClient(settings.MONGODB_URI)
-#     return _mongo_client[settings.MONGODB_DB_NAME]
-#
-#
-# async def close_database():
-#     """Close MongoDB connection on shutdown."""
-#     global _mongo_client
-#     if _mongo_client is not None:
-#         _mongo_client.close()
-#         _mongo_client = None
+# MongoDB connection state
+_mongo_client: Optional[AsyncIOMotorClient] = None
+_database: Optional[AsyncIOMotorDatabase] = None
 
 
-class MockDatabase:
+async def connect_database() -> AsyncIOMotorDatabase:
     """
-    Mock database for development.
-    TODO: Replace with actual MongoDB collections.
+    Initialize MongoDB connection.
+    Called during application startup.
     """
+    global _mongo_client, _database
+    
+    if _mongo_client is None:
+        print(f"Connecting to MongoDB: {settings.MONGODB_DB_NAME}")
+        _mongo_client = AsyncIOMotorClient(settings.MONGODB_URI)
+        _database = _mongo_client[settings.MONGODB_DB_NAME]
+        
+        # Verify connection by pinging the database
+        try:
+            await _mongo_client.admin.command('ping')
+            print("✅ MongoDB connection successful")
+        except Exception as e:
+            print(f"❌ MongoDB connection failed: {e}")
+            raise
+    
+    return _database
 
-    def __init__(self):
-        self.users: dict = {}
-        self.shops: dict = {}
-        self.products: dict = {}
-        self.template_schemas: dict = {}
-        self.mapping_jobs: dict = {}
 
-    def get_collection(self, name: str) -> dict:
-        return getattr(self, name, {})
+async def close_database():
+    """
+    Close MongoDB connection.
+    Called during application shutdown.
+    """
+    global _mongo_client, _database
+    
+    if _mongo_client is not None:
+        print("Closing MongoDB connection...")
+        _mongo_client.close()
+        _mongo_client = None
+        _database = None
+        print("MongoDB connection closed")
 
 
-# Global mock database instance
-_mock_db = MockDatabase()
-
-
-def get_mock_db() -> MockDatabase:
-    """Get mock database for development."""
-    return _mock_db
+def get_database() -> AsyncIOMotorDatabase:
+    """
+    Get MongoDB database instance for dependency injection.
+    
+    Usage:
+        @router.get("/items")
+        async def get_items(db: AsyncIOMotorDatabase = Depends(get_database)):
+            items = await db.items.find().to_list(100)
+            return items
+    """
+    if _database is None:
+        raise RuntimeError("Database not initialized. Call connect_database() first.")
+    return _database
 
 
 # Re-export auth dependency for convenience
 __all__ = [
     "get_settings",
     "get_current_user",
-    "get_mock_db",
+    "connect_database",
+    "close_database",
+    "get_database",
 ]

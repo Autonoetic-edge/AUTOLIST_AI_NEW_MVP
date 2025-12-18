@@ -1,22 +1,23 @@
-version: '3.8'
-
 services:
-  # MongoDB Database
-  mongodb:
-    image: mongo:7.0
-    container_name: autolist-mongodb
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    environment:
-      - MONGO_INITDB_DATABASE=autolist_ai
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # ==========================================================================
+  # MongoDB Database (LOCAL - COMMENTED OUT, USING MONGODB ATLAS INSTEAD)
+  # ==========================================================================
+  # Uncomment this section if you want to use local MongoDB instead of Atlas
+  # mongodb:
+  #   image: mongo:7.0
+  #   container_name: autolist-mongodb
+  #   restart: unless-stopped
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   environment:
+  #     - MONGO_INITDB_DATABASE=autolist_ai
+  #   healthcheck:
+  #     test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   # Backend API (FastAPI)
   backend:
@@ -27,21 +28,23 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
-    depends_on:
-      mongodb:
-        condition: service_healthy
+    # No longer depends on local MongoDB - using Atlas
+    # depends_on:
+    #   mongodb:
+    #     condition: service_healthy
     environment:
       - APP_NAME=AutoList AI
       - APP_VERSION=1.0.0
       - DEBUG=True
       - SECRET_KEY=${SECRET_KEY:-change-this-secret-key-in-production}
-      - MONGODB_URI=mongodb://mongodb:27017
-      - MONGODB_DB_NAME=autolist_ai
+      # MongoDB Atlas connection - reads from .env file
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-autolist_ai}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
       - ./backend/app:/app/app:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -60,24 +63,27 @@ services:
     environment:
       - VITE_API_URL=http://localhost:8000
 
-  # Schema Seeder (one-time job)
+  # Schema Seeder (one-time job) - Seeds template schemas to MongoDB Atlas
   seed:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: autolist-seed
-    depends_on:
-      mongodb:
-        condition: service_healthy
+    # No longer depends on local MongoDB - using Atlas
+    # depends_on:
+    #   mongodb:
+    #     condition: service_healthy
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017
-      - MONGODB_DB_NAME=autolist_ai
+      # MongoDB Atlas connection - reads from .env file
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-autolist_ai}
     command: python -m app.data.seed_template_schemas
     restart: "no"
 
-volumes:
-  mongodb_data:
-    driver: local
+# Volumes (local MongoDB data volume commented out - using Atlas)
+# volumes:
+#   mongodb_data:
+#     driver: local
 
 networks:
   default:

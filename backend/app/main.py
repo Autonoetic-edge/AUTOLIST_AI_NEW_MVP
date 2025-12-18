@@ -11,30 +11,32 @@ from contextlib import asynccontextmanager
 from .config import settings
 from .auth import router as auth_router
 from .api.shopify import router as shopify_router
+from .api.products import router as products_router
+from .api.analytics import router as analytics_router
+from .dependencies import connect_database, close_database
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Application lifespan handler for startup and shutdown events.
-
-    TODO: Add MongoDB connection initialization here
-    Example:
-        from motor.motor_asyncio import AsyncIOMotorClient
-        app.state.mongo_client = AsyncIOMotorClient(settings.MONGODB_URI)
-        app.state.db = app.state.mongo_client[settings.MONGODB_DB_NAME]
+    Manages database connections and background workers.
     """
     # Startup
     print(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    # TODO: Initialize MongoDB connection
-    # TODO: Initialize any background workers
+    
+    # Initialize MongoDB connection
+    try:
+        await connect_database()
+    except Exception as e:
+        print(f"Warning: Could not connect to MongoDB: {e}")
+        print("Application will continue but database features may not work.")
 
     yield
 
     # Shutdown
     print(f"Shutting down {settings.APP_NAME}")
-    # TODO: Close MongoDB connection
-    # TODO: Cleanup background workers
+    await close_database()
 
 
 # Create FastAPI application
@@ -68,17 +70,11 @@ app.include_router(auth_router)
 # Shopify routes
 app.include_router(shopify_router)
 
-# TODO: Register Products router
-# from .api.products import router as products_router
-# app.include_router(products_router)
+# Products routes
+app.include_router(products_router)
 
-# TODO: Register Mapping router
-# from .api.mapping import router as mapping_router
-# app.include_router(mapping_router)
-
-# TODO: Register Analytics router
-# from .api.analytics import router as analytics_router
-# app.include_router(analytics_router)
+# Analytics routes
+app.include_router(analytics_router)
 
 
 # ============================================================================

@@ -90,28 +90,38 @@ async def sync_products(
                 detail=f"Shop {request.shop_domain} is not connected. Please connect first.",
             )
 
+        print(f"Syncing products for {request.shop_domain}...")
+
         # Initialize service and fetch products
         service = ShopifyService(request.shop_domain, access_token)
         products_data = await service.fetch_products(limit=250)
 
+        print(f"Fetched {len(products_data)} products from Shopify API")
+
         # Save products to database
         saved_count = await save_products(request.shop_domain, products_data)
 
-        # Convert to response models
-        products = [
-            ShopifyProduct(
+        print(f"Saved {saved_count} products to database")
+
+        # Convert to response models - handle tags properly
+        products = []
+        for p in products_data:
+            # Shopify returns tags as comma-separated string
+            tags = p.get("tags", [])
+            if isinstance(tags, str):
+                tags = [t.strip() for t in tags.split(",") if t.strip()]
+            
+            products.append(ShopifyProduct(
                 id=str(p.get("id", "")),
                 title=p.get("title", ""),
-                description=p.get("description"),
+                description=p.get("body_html") or p.get("description"),
                 vendor=p.get("vendor"),
                 product_type=p.get("product_type"),
-                tags=p.get("tags", []),
+                tags=tags,
                 variants=p.get("variants", []),
                 images=p.get("images", []),
                 metafields=p.get("metafields"),
-            )
-            for p in products_data
-        ]
+            ))
 
         return ShopifySyncResponse(
             success=True,
@@ -122,6 +132,9 @@ async def sync_products(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        print(f"Error syncing products: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to sync products: {str(e)}",

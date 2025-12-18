@@ -1,0 +1,151 @@
+# Real Shopify Store Integration with MongoDB Database
+
+Replace all mock data with real Shopify API calls and MongoDB database storage for products, shop info, and analytics.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Prerequisites Required:**
+> 1. **MongoDB Atlas connection** - Ensure your [.env](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/.env) has a valid `MONGODB_URI` (e.g., `mongodb+srv://user:pass@cluster.mongodb.net/...`)
+> 2. **Shopify Private App** - You need a Shopify store with a custom app created and Admin API access token
+> 3. **Encryption Key** - Generate with: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+
+## Proposed Changes
+
+### Database Integration Component
+
+Updates to establish MongoDB connection and implement real data persistence.
+
+---
+
+#### [MODIFY] [dependencies.py](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/backend/app/dependencies.py)
+
+- Add MongoDB connection using `motor.motor_asyncio.AsyncIOMotorClient`
+- Implement `get_database()` dependency function
+- Add connection pooling and lifecycle management
+
+```python
+# New implementation:
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from typing import Optional
+
+_mongo_client: Optional[AsyncIOMotorClient] = None
+_database: Optional[AsyncIOMotorDatabase] = None
+
+async def connect_database():
+    """Initialize MongoDB connection."""
+    global _mongo_client, _database
+    if _mongo_client is None:
+        _mongo_client = AsyncIOMotorClient(settings.MONGODB_URI)
+        _database = _mongo_client[settings.MONGODB_DB_NAME]
+    return _database
+
+async def close_database():
+    """Close MongoDB connection."""
+    global _mongo_client, _database
+    if _mongo_client:
+        _mongo_client.close()
+        _mongo_client = None
+        _database = None
+
+def get_database() -> AsyncIOMotorDatabase:
+    """Get database instance for dependency injection."""
+    if _database is None:
+        raise RuntimeError("Database not initialized")
+    return _database
+```
+
+---
+
+#### [MODIFY] [main.py](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/backend/app/main.py)
+
+- Initialize MongoDB in lifespan handler
+- Register products and analytics routers
+
+---
+
+### Shopify Service Component
+
+Real API calls to Shopify and database persistence.
+
+---
+
+#### [MODIFY] [shopify_service.py](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/backend/app/services/shopify_service.py)
+
+- Implement real [fetch_products()](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/backend/app/services/shopify_service.py#37-197) using Shopify REST API
+- Implement real [get_shop_info()](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/backend/app/services/shopify_service.py#198-224) API call
+- Implement [save_shop_info()](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/backend/app/services/shopify_service.py#265-297) with MongoDB persistence
+- Implement [get_shop_token()](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/backend/app/services/shopify_service.py#299-321) with MongoDB lookup
+- Implement [save_products()](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/backend/app/services/shopify_service.py#323-355) with MongoDB bulk upsert
+
+Key changes in [fetch_products()](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/backend/app/services/shopify_service.py#37-197):
+```python
+async def fetch_products(self, limit: int = 50) -> List[Dict[str, Any]]:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{self.base_url}/products.json",
+            headers=self._get_headers(),
+            params={"limit": min(limit, 250)},
+        )
+        response.raise_for_status()
+        return response.json().get("products", [])
+```
+
+---
+
+### Products API Component
+
+New router for querying products from the database.
+
+---
+
+#### [NEW] [products.py](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/backend/app/api/products.py)
+
+- GET `/api/products` - List all products (paginated)
+- GET `/api/products/{product_id}` - Get single product
+
+---
+
+### Analytics API Component
+
+New router for dashboard analytics.
+
+---
+
+#### [NEW] [analytics.py](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/backend/app/api/analytics.py)
+
+- GET `/api/analytics/summary` - Product counts, mapping stats
+- GET `/api/analytics/activity` - Recent sync activity log
+
+---
+
+### Frontend Component
+
+Remove hardcoded sample data and fetch from real API.
+
+---
+
+#### [MODIFY] [Products.jsx](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/frontend/src/pages/Products.jsx)
+
+- Remove `SAMPLE_PRODUCTS` constant
+- Fetch products from `/api/products` in [loadData()](file:///d:/Autonoetic_edge/AUTOLIST_AI_NEW_MVP/frontend/src/pages/Products.jsx#47-61)
+- Handle empty state when no products exist
+
+---
+
+## Verification Plan
+
+### Automated Tests
+1. Start backend: `cd backend && uvicorn app.main:app --reload`
+2. Test MongoDB connection: Visit `http://localhost:8000/health`
+3. Test Shopify connect: POST to `/api/shopify/connect` with real credentials
+4. Test product sync: POST to `/api/shopify/sync-products`
+5. Verify products saved: GET `/api/products`
+6. Verify analytics: GET `/api/analytics/summary`
+
+### Manual Verification
+1. Run frontend at `http://localhost:5173`
+2. Navigate to Connect Store page → enter real Shopify credentials
+3. Click "Sync Products" → verify products appear in database
+4. Navigate to Products page → verify real products display
+5. Navigate to Dashboard → verify analytics show real counts

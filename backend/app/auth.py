@@ -23,12 +23,16 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hashed password."""
-    return pwd_context.verify(plain_password, hashed_password)
+    # Bcrypt has a max password length of 72 bytes
+    password_bytes = plain_password.encode('utf-8')[:72]
+    return pwd_context.verify(password_bytes.decode('utf-8', errors='ignore'), hashed_password)
 
 
 def hash_password(password: str) -> str:
-    """Hash a plain password."""
-    return pwd_context.hash(password)
+    """Hash a plain password with bcrypt's 72 byte limit."""
+    # Bcrypt has a max password length of 72 bytes
+    password_bytes = password.encode('utf-8')[:72]
+    return pwd_context.hash(password_bytes.decode('utf-8', errors='ignore'))
 
 
 def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:

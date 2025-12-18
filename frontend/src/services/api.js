@@ -73,6 +73,12 @@ export const productsAPI = {
   getById: (productId) =>
     api.get(`/api/products/${productId}`),
 
+  getCount: (params = {}) =>
+    api.get('/api/products/count', { params }),
+
+  delete: (productId) =>
+    api.delete(`/api/products/${productId}`),
+
   getMapping: (productId, schemaId) =>
     api.get(`/api/products/${productId}/mapping`, {
       params: { schema_id: schemaId },

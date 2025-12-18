@@ -157,11 +157,21 @@ class MappingUpdateRequest(BaseModel):
 class AnalyticsSummary(BaseModel):
     """Dashboard analytics summary."""
     total_products: int
-    mapping_jobs_pending: int
-    mapping_jobs_needs_input: int
-    mapping_jobs_completed: int
-    auto_fill_rate: float = Field(description="Average confidence score")
-    recent_activity: List[Dict[str, Any]]
+    mapping_jobs_pending: int = 0
+    mapping_jobs_needs_input: int = 0
+    mapping_jobs_completed: int = 0
+    auto_fill_rate: float = Field(default=0.0, description="Average confidence score")
+    connected_shops: int = 0
+    recent_activity: Optional[List[Dict[str, Any]]] = None
+
+
+class ActivityLog(BaseModel):
+    """Activity log entry for dashboard."""
+    id: str
+    type: str = Field(description="Activity type: product_synced, shop_connected, mapping_completed, etc.")
+    message: str
+    job_id: Optional[str] = None
+    timestamp: datetime
 
 
 # ============================================================================
